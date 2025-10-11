@@ -46,28 +46,83 @@ client.once('ready', async () => {
     console.log('💡 Untuk mendaftarkan slash commands, jalankan: npm run deploy');
 });
 
-// Event untuk interaksi slash commands
+// Event untuk interaksi (slash commands dan buttons)
 client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+    // Handle slash commands
+    if (interaction.isChatInputCommand()) {
+        const command = client.commands.get(interaction.commandName);
 
-    const command = client.commands.get(interaction.commandName);
+        if (!command) {
+            console.error(`No command matching ${interaction.commandName} was found.`);
+            return;
+        }
 
-    if (!command) {
-        console.error(`No command matching ${interaction.commandName} was found.`);
+        try {
+            await command.execute(interaction);
+        } catch (error) {
+            console.error(`Error executing ${interaction.commandName}:`, error);
+            const errorMessage = '❌ Terjadi error saat menjalankan command!';
+            
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({ content: errorMessage, ephemeral: true });
+            } else {
+                await interaction.reply({ content: errorMessage, ephemeral: true });
+            }
+        }
         return;
     }
 
-    try {
-        await command.execute(interaction);
-    } catch (error) {
-        console.error(`Error executing ${interaction.commandName}:`, error);
-        const errorMessage = '❌ Terjadi error saat menjalankan command!';
-        
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: errorMessage, ephemeral: true });
-        } else {
-            await interaction.reply({ content: errorMessage, ephemeral: true });
+    // Handle button interactions
+    if (interaction.isButton()) {
+        // Verification button handler
+        if (interaction.customId === 'verify_button') {
+            const verifyRoleId = '1423692148313690224';
+            const verifyRole = interaction.guild.roles.cache.get(verifyRoleId);
+            
+            if (!verifyRole) {
+                return interaction.reply({
+                    content: '❌ Role verifikasi tidak ditemukan! Hubungi administrator.',
+                    ephemeral: true
+                });
+            }
+            
+            // Check if user already has the role
+            if (interaction.member.roles.cache.has(verifyRoleId)) {
+                return interaction.reply({
+                    content: '✅ Anda sudah terverifikasi!',
+                    ephemeral: true
+                });
+            }
+            
+            try {
+                // Add role to member
+                await interaction.member.roles.add(verifyRole);
+                
+                const successEmbed = new EmbedBuilder()
+                    .setTitle('✅ Verifikasi Berhasil!')
+                    .setDescription(`Selamat! Anda telah berhasil diverifikasi dan mendapatkan role **${verifyRole.name}**.\n\n` +
+                        'Sekarang Anda memiliki akses penuh ke server ini. Selamat bergabung! 🎉')
+                    .setColor('#00ff00')
+                    .setThumbnail(interaction.user.displayAvatarURL())
+                    .setFooter({ text: 'Selamat bergabung di komunitas kami!' })
+                    .setTimestamp();
+                
+                await interaction.reply({
+                    embeds: [successEmbed],
+                    ephemeral: true
+                });
+                
+                console.log(`✅ ${interaction.user.tag} berhasil diverifikasi dan mendapat role ${verifyRole.name}`);
+                
+            } catch (error) {
+                console.error('Error adding verification role:', error);
+                await interaction.reply({
+                    content: '❌ Terjadi error saat memberikan role verifikasi. Hubungi administrator!',
+                    ephemeral: true
+                });
+            }
         }
+        return;
     }
 });
 
