@@ -1,0 +1,9 @@
+{
+  "prefix": "!",
+  "color": "#000000",
+  "embedFooter": "Made with ❤️ using Discord.js",
+  "status": {
+    "type": "PLAYING",
+    "name": "with Discord.js"
+  }
+}
