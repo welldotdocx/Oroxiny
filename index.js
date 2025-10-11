@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 require('dotenv').config();
 const config = require('./config.json');
+const ActionLogger = require('./src/utils/actionLogger');
 
 // Membuat client Discord dengan intents yang diperlukan
 const client = new Client({
@@ -16,6 +17,9 @@ const client = new Client({
 
 // Collection untuk menyimpan commands
 client.commands = new Collection();
+
+// Initialize Action Logger
+const logger = new ActionLogger(client);
 
 // Load command files
 const commandsPath = path.join(__dirname, 'src/commands');
@@ -160,9 +164,12 @@ client.on('messageCreate', async message => {
     }
 });
 
-// Event untuk member baru bergabung
-client.on('guildMemberAdd', member => {
+// Action Logging Events
+client.on('guildMemberAdd', async member => {
     console.log(`✅ ${member.user.tag} bergabung ke ${member.guild.name}`);
+    
+    // Log member join
+    await logger.logMemberJoin(member);
     
     // Cari channel welcome (optional)
     const welcomeChannel = member.guild.channels.cache.find(
@@ -182,9 +189,56 @@ client.on('guildMemberAdd', member => {
     }
 });
 
-// Event untuk member keluar
-client.on('guildMemberRemove', member => {
+client.on('guildMemberRemove', async member => {
     console.log(`❌ ${member.user.tag} keluar dari ${member.guild.name}`);
+    
+    // Log member leave
+    await logger.logMemberLeave(member);
+});
+
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    // Log member updates (nickname, roles)
+    await logger.logMemberUpdate(oldMember, newMember);
+});
+
+client.on('channelCreate', async channel => {
+    console.log(`✅ Channel ${channel.name} dibuat di ${channel.guild.name}`);
+    
+    // Log channel creation
+    await logger.logChannelCreate(channel);
+});
+
+client.on('channelDelete', async channel => {
+    console.log(`❌ Channel ${channel.name} dihapus di ${channel.guild.name}`);
+    
+    // Log channel deletion
+    await logger.logChannelDelete(channel);
+});
+
+client.on('channelUpdate', async (oldChannel, newChannel) => {
+    // Log channel updates
+    await logger.logChannelUpdate(oldChannel, newChannel);
+});
+
+client.on('messageDelete', async message => {
+    if (!message.guild || message.author?.bot) return;
+    
+    // Log message deletion
+    await logger.logMessageDelete(message);
+});
+
+client.on('guildBanAdd', async ban => {
+    console.log(`❌ ${ban.user.tag} dibanned dari ${ban.guild.name}`);
+    
+    // Log member ban
+    await logger.logBanAdd(ban);
+});
+
+client.on('guildBanRemove', async ban => {
+    console.log(`✅ ${ban.user.tag} di-unban dari ${ban.guild.name}`);
+    
+    // Log member unban
+    await logger.logBanRemove(ban);
 });
 
 // Error handling
